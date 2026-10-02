@@ -1,4 +1,3 @@
-import os
 from fastapi import FastAPI
 
 from app.api.meetings import router as meetings_router
