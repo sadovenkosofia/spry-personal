@@ -2,12 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 
 import { listMeetings } from "@/api/meetings";
+import { AuthBar } from "@/auth/AuthBar";
+import LoginPage from "@/auth/LoginPage";
 import { MeetingList } from "@/components/MeetingList";
 import { NewMeetingDialog } from "@/components/NewMeetingDialog";
 import { Button } from "@/components/ui/button";
 import type { Meeting } from "@/types/meeting";
 
-export default function App() {
+function MeetingsPage() {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,10 +44,13 @@ export default function App() {
               </p>
             )}
           </div>
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="size-4" />
-            New meeting
-          </Button>
+          <div className="flex items-center gap-3">
+            <AuthBar />
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="size-4" />
+              New meeting
+            </Button>
+          </div>
         </header>
 
         <MeetingList meetings={meetings} loading={loading} error={error} onNew={() => setDialogOpen(true)} />
@@ -53,4 +58,9 @@ export default function App() {
       <NewMeetingDialog open={dialogOpen} onOpenChange={setDialogOpen} onCreated={load} />
     </div>
   );
+}
+
+export default function App() {
+  if (window.location.pathname.startsWith("/login")) return <LoginPage />;
+  return <MeetingsPage />;
 }
