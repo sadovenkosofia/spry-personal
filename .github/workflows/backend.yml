@@ -24,6 +24,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Debug OIDC claims
+        run: |
+          curl -sH "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
+            | python3 -c "import sys,json,base64; t=json.load(sys.stdin)['value'].split('.')[1]; print(json.dumps({k:v for k,v in json.loads(base64.urlsafe_b64decode(t+'='*(-len(t)%4))).items() if k in ('sub','aud','iss','repository','ref')}, indent=2))"
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::516387401775:role/github-deploy-backend
