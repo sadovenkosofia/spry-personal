@@ -1,0 +1,31 @@
+name: backend-deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write   # needed to request the GitHub OIDC token
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install ruff
+      - run: ruff check backend/
+
+  deploy:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::516387401775:role/github-deploy-backend
+          aws-region: eu-central-1
+      - run: make deploy-backend
