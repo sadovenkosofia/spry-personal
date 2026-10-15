@@ -68,6 +68,7 @@ REPORTS_IMAGE_TAG  ?= reports-$(IMAGE_TAG)
 REPORTS_IMAGE      = $(ECR_REGISTRY)/$(ECR_REPOSITORY):$(REPORTS_IMAGE_TAG)
 REPORT_EMAIL       ?=
 SCHEDULE           ?=
+FAIL_WEEK          ?=
 reports_output = $(shell aws cloudformation describe-stacks --region $(AWS_REGION) --stack-name $(REPORTS_STACK) --query "Stacks[0].Outputs[?OutputKey=='$(1)'].OutputValue" --output text)
 
 .PHONY: build-reports-image deploy-reports report-now
@@ -88,7 +89,7 @@ endif
 	@DB_URL=$$(aws ecs describe-task-definition --region $(AWS_REGION) --task-definition $(TASK_FAMILY) --query "taskDefinition.containerDefinitions[0].environment[?name=='DATABASE_URL'].value" --output text) && \
 	aws cloudformation deploy --region $(AWS_REGION) --stack-name $(REPORTS_STACK) \
 	  --template-file infra/reports.yml --capabilities CAPABILITY_IAM \
-	  --parameter-overrides ProjectName=$(PROJECT_NAME) BuilderImageUri=$(REPORTS_IMAGE) DatabaseUrl="$$DB_URL" ReportEmail=$(REPORT_EMAIL) $(if $(SCHEDULE),ScheduleExpression="$(SCHEDULE)") \
+	  --parameter-overrides ProjectName=$(PROJECT_NAME) BuilderImageUri=$(REPORTS_IMAGE) DatabaseUrl="$$DB_URL" ReportEmail=$(REPORT_EMAIL) $(if $(SCHEDULE),ScheduleExpression="$(SCHEDULE)") $(if $(FAIL_WEEK),FailWeek="$(FAIL_WEEK)") \
 	  --tags PROJECT_NAME=$(PROJECT_NAME)
 
 # build (or rebuild) the report of one week on demand:  make report-now WEEK=2026-W41

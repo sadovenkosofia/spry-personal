@@ -18,6 +18,10 @@ Parameters:
     Type: String
     Default: "cron(0 7 ? * MON *)"
     Description: Use "rate(5 minutes)" to test, then set it back
+  FailWeek:
+    Type: String
+    Default: "none"
+    Description: DLQ demo. The builder fails for this week (e.g. 2026-W39). Keep "none" normally.
   # Your existing network (from the ECS service and the RDS instance)
   VpcId:
     Type: String
@@ -145,6 +149,7 @@ Resources:
         Variables:
           DATABASE_URL: !Ref DatabaseUrl
           REPORTS_BUCKET: !Sub ${ProjectName}-reports-${AWS::AccountId}
+          FAIL_WEEK: !Ref FailWeek
 
   # Lambda polls the queue and invokes the builder. The builder never
   # connects to SQS, so no endpoint is needed.

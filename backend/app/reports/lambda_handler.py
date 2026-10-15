@@ -21,6 +21,8 @@ log = logging.getLogger()
 log.setLevel(logging.INFO)
 
 s3 = boto3.client("s3")
+# Test hook for the DLQ demo: if FAIL_WEEK equals the requested week, fail.
+FAIL_WEEK = os.environ.get("FAIL_WEEK", "none")
 
 
 def parse_event(event: dict) -> tuple[str, str, dict]:
@@ -49,7 +51,8 @@ def handler(event, context):
         "report-builder triggered trigger=%s event_source=%s week=%s",
         trigger, event_source, week,
     )
-
+    if week == FAIL_WEEK:
+        raise RuntimeError(f"FAIL_WEEK hook: refusing to build {week}")
     csv_bytes = build_weekly_report(week)  # a bad week raises -> retry -> DLQ
     key = report_key(week)
     s3.put_object(
