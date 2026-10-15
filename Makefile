@@ -59,3 +59,41 @@ endif
 	  --template-file infra/auth.yml \
 	  --parameter-overrides ProjectName=$(PROJECT_NAME) GoogleClientId=$(GOOGLE_CLIENT_ID) GoogleClientSecret=$(GOOGLE_CLIENT_SECRET) \
 	  --tags PROJECT_NAME=$(PROJECT_NAME)
+
+# ---------------------------------------------------------------- weekly report (infra/reports.yml)
+# Needs REPORT_EMAIL (put it in deploy.env). IMAGE_TAG comes from `git rev-parse HEAD`,
+# so commit before building, or pass IMAGE_TAG=something.
+REPORTS_STACK      ?= spry-reports
+REPORTS_IMAGE_TAG  ?= reports-$(IMAGE_TAG)
+REPORTS_IMAGE      = $(ECR_REGISTRY)/$(ECR_REPOSITORY):$(REPORTS_IMAGE_TAG)
+REPORT_EMAIL       ?=
+SCHEDULE           ?=
+reports_output = $(shell aws cloudformation describe-stacks --region $(AWS_REGION) --stack-name $(REPORTS_STACK) --query "Stacks[0].Outputs[?OutputKey=='$(1)'].OutputValue" --output text)
+
+.PHONY: build-reports-image deploy-reports report-now
+
+# build the builder-Lambda image and push it next to the backend image.
+# --provenance=false: Lambda rejects the attestation manifests BuildKit adds by default.
+build-reports-image:
+	aws ecr get-login-password --region $(AWS_REGION) | docker login --username AWS --password-stdin $(ECR_REGISTRY)
+	docker build --platform linux/amd64 --provenance=false -f backend/Dockerfile.lambda -t $(REPORTS_IMAGE) ./backend
+	docker push $(REPORTS_IMAGE)
+
+# deploy the stack. DATABASE_URL is read from the ECS task definition, never typed or committed.
+# SCHEDULE='rate(5 minutes)' overrides the cron for testing; run again without it to restore.
+deploy-reports:
+ifndef REPORT_EMAIL
+	$(error REPORT_EMAIL is not set, put it in deploy.env)
+endif
+	@DB_URL=$$(aws ecs describe-task-definition --region $(AWS_REGION) --task-definition $(TASK_FAMILY) --query "taskDefinition.containerDefinitions[0].environment[?name=='DATABASE_URL'].value" --output text) && \
+	aws cloudformation deploy --region $(AWS_REGION) --stack-name $(REPORTS_STACK) \
+	  --template-file infra/reports.yml --capabilities CAPABILITY_IAM \
+	  --parameter-overrides ProjectName=$(PROJECT_NAME) BuilderImageUri=$(REPORTS_IMAGE) DatabaseUrl="$$DB_URL" ReportEmail=$(REPORT_EMAIL) $(if $(SCHEDULE),ScheduleExpression="$(SCHEDULE)") \
+	  --tags PROJECT_NAME=$(PROJECT_NAME)
+
+# build (or rebuild) the report of one week on demand:  make report-now WEEK=2026-W41
+report-now:
+ifndef WEEK
+	$(error WEEK is not set, e.g. make report-now WEEK=2026-W41)
+endif
+	aws sqs send-message --region $(AWS_REGION) --queue-url $(call reports_output,QueueUrl) --message-body '{"week": "$(WEEK)", "source": "manual"}'

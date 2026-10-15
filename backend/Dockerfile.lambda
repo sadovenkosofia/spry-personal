@@ -1,0 +1,12 @@
+# Image for the report-builder Lambda (Lambda cannot run the uvicorn image).
+# Build from backend/:  docker build -f Dockerfile.lambda ...
+FROM public.ecr.aws/lambda/python:3.13
+
+# Only what the report needs. Versions match pyproject.toml.
+# tzdata: zoneinfo needs it for Europe/Kyiv. boto3 is already in the base image.
+RUN pip install --no-cache-dir "sqlalchemy==2.1.1" "psycopg[binary]==3.3.6" tzdata
+
+COPY app ${LAMBDA_TASK_ROOT}/app
+
+# Overridden by ImageConfig.Command in infra/reports.yml
+CMD ["app.reports.lambda_handler.handler"]
