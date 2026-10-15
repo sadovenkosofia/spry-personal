@@ -2,16 +2,17 @@
 
 Run from backend/:  DATABASE_URL=postgresql+psycopg://x pytest tests/
 """
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
-
 from app.reports.weekly import (
-    previous_week, render_csv, report_key, shift_week, week_bounds,
+    previous_week,
+    render_csv,
+    report_key,
+    shift_week,
+    week_bounds,
 )
-
-UTC = timezone.utc
 
 
 def meeting(id, title, start, hours, people):
