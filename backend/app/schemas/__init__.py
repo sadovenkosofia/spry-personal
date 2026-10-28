@@ -1,3 +1,3 @@
-from app.schemas.meeting import MeetingCreate, MeetingRead
+from app.schemas.meeting import AgendaSave, MeetingCreate, MeetingRead
 
-__all__ = ["MeetingCreate", "MeetingRead"]
+__all__ = ["AgendaSave", "MeetingCreate", "MeetingRead"]

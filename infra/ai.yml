@@ -1,0 +1,111 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Paste an agenda - parser Lambda with a function URL (outside the VPC, calls Bedrock)
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: demo
+  ParserImageUri:
+    Type: String
+    Description: ECR image (see make build-ai-image)
+  ParserModel:
+    Type: String
+    Default: us.anthropic.claude-haiku-4-5-20251001-v1:0
+  AuthRegion:
+    Type: String
+    Default: us-east-1
+  UserPoolId:
+    Type: String
+  UserPoolClientId:
+    Type: String
+  AllowedOrigins:
+    Type: CommaDelimitedList
+    Default: "https://db638pojoftlz.cloudfront.net,http://localhost:5173"
+
+Resources:
+  ParserRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: invoke-claude
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Only these two models. The us.* profile routes to several US regions,
+              # so the foundation-model ARN has a wildcard region.
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                Resource:
+                  - !Sub arn:aws:bedrock:us-east-1:${AWS::AccountId}:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0
+                  - !Sub arn:aws:bedrock:us-east-1:${AWS::AccountId}:inference-profile/us.anthropic.claude-sonnet-4-5-20250929-v1:0
+                  - arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0
+                  - arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-4-5-20250929-v1:0
+
+  ParserLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${ProjectName}-agenda-parser
+      RetentionInDays: 14
+
+  ParserFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: ParserLogGroup
+    Properties:
+      FunctionName: !Sub ${ProjectName}-agenda-parser
+      PackageType: Image
+      Code:
+        ImageUri: !Ref ParserImageUri
+      ImageConfig:
+        Command: ["app.ai.agenda_lambda.handler"]
+      Role: !GetAtt ParserRole.Arn
+      Timeout: 30
+      MemorySize: 512
+      Environment:
+        Variables:
+          PARSER_MODEL: !Ref ParserModel
+          AUTH_REGION: !Ref AuthRegion
+          USER_POOL_ID: !Ref UserPoolId
+          USER_POOL_CLIENT_ID: !Ref UserPoolClientId
+
+  # Public URL, but the handler checks the Cognito token itself.
+  ParserUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !GetAtt ParserFunction.Arn
+      AuthType: NONE
+      Cors:
+        AllowOrigins: !Ref AllowedOrigins
+        AllowMethods: [POST]
+        AllowHeaders: [content-type, authorization]
+        MaxAge: 3600
+
+  UrlInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunctionUrl
+      FunctionName: !Ref ParserFunction
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+
+  UrlInvokeFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ParserFunction
+      Principal: "*"
+      InvokedViaFunctionUrl: true
+
+Outputs:
+  ParserUrl:
+    Value: !GetAtt ParserUrl.FunctionUrl
+  ParserFunctionName:
+    Value: !Ref ParserFunction

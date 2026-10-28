@@ -1,12 +1,12 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_session
 from app.models import Meeting
-from app.schemas import MeetingCreate, MeetingRead
+from app.schemas import AgendaSave, MeetingCreate, MeetingRead
 
 router = APIRouter(prefix="/api/meetings")
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -21,5 +21,17 @@ def list_meetings(session: SessionDep) -> list[Meeting]:
 def create_meeting(payload: MeetingCreate, session: SessionDep) -> Meeting:
     meeting = Meeting(**payload.model_dump())
     session.add(meeting)
+    session.commit()
+    return meeting
+
+
+
+@router.put("/{meeting_id}/agenda", response_model=MeetingRead)
+def save_agenda(meeting_id: int, payload: AgendaSave, session: SessionDep) -> Meeting:
+    meeting = session.get(Meeting, meeting_id)
+    if meeting is None:
+        raise HTTPException(status_code=404, detail="meeting not found")
+    meeting.agenda = payload.model_dump(mode="json", include={"items", "action_items"})
+    meeting.ai_suggestion = payload.ai_suggestion
     session.commit()
     return meeting

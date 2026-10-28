@@ -98,3 +98,40 @@ ifndef WEEK
 	$(error WEEK is not set, e.g. make report-now WEEK=2026-W41)
 endif
 	aws sqs send-message --region $(AWS_REGION) --queue-url $(call reports_output,QueueUrl) --message-body '{"week": "$(WEEK)", "source": "manual"}'
+
+# ---------------------------------------------------------------- AI agenda parser
+PARSER_MODEL ?= us.anthropic.claude-haiku-4-5-20251001-v1:0
+export PARSER_MODEL
+
+.PHONY: llm-hello parse
+
+# first call to the model from the laptop
+llm-hello:
+	python backend/scripts/llm_hello.py
+
+# run the parser function locally:  make parse TEXT="..."
+parse:
+	cd backend && python -m app.ai.agenda
+
+
+# ---------------------------------------------------------------- agenda parser Lambda (infra/ai.yml)
+AI_STACK      ?= spry-ai
+AI_IMAGE_TAG  ?= ai-$(IMAGE_TAG)
+AI_IMAGE      = $(ECR_REGISTRY)/$(ECR_REPOSITORY):$(AI_IMAGE_TAG)
+ai_output = $(shell aws cloudformation describe-stacks --region $(AWS_REGION) --stack-name $(AI_STACK) --query "Stacks[0].Outputs[?OutputKey=='$(1)'].OutputValue" --output text)
+
+.PHONY: build-ai-image deploy-ai
+
+# same image recipe as the reports builder, another tag
+build-ai-image:
+	aws ecr get-login-password --region $(AWS_REGION) | docker login --username AWS --password-stdin $(ECR_REGISTRY)
+	docker build --platform linux/amd64 --provenance=false -f backend/Dockerfile.lambda -t $(AI_IMAGE) ./backend
+	docker push $(AI_IMAGE)
+
+deploy-ai:
+	aws cloudformation deploy --region $(AWS_REGION) --stack-name $(AI_STACK) \
+	  --template-file infra/ai.yml --capabilities CAPABILITY_IAM \
+	  --parameter-overrides ProjectName=$(PROJECT_NAME) ParserImageUri=$(AI_IMAGE) ParserModel=$(PARSER_MODEL) \
+	    UserPoolId=$(call auth_output,UserPoolId) UserPoolClientId=$(call auth_output,UserPoolClientId) AuthRegion=$(AUTH_REGION) \
+	  --tags PROJECT_NAME=$(PROJECT_NAME)
+	@echo Parser URL: $(call ai_output,ParserUrl)
