@@ -53,7 +53,13 @@ function MeetingsPage() {
           </div>
         </header>
 
-        <MeetingList meetings={meetings} loading={loading} error={error} onNew={() => setDialogOpen(true)} />
+        <MeetingList
+          meetings={meetings}
+          loading={loading}
+          error={error}
+          onNew={() => setDialogOpen(true)}
+          onChanged={load}
+        />
       </main>
       <NewMeetingDialog open={dialogOpen} onOpenChange={setDialogOpen} onCreated={load} />
     </div>

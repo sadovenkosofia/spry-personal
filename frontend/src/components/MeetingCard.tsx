@@ -1,5 +1,8 @@
-import { Clock, Users } from "lucide-react";
+import { useState } from "react";
+import { Clock, ListChecks, Users } from "lucide-react";
 
+import { AgendaDialog } from "@/components/AgendaDialog";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Meeting } from "@/types/meeting";
 
@@ -20,7 +23,8 @@ function formatRange(start: Date, end: Date): string {
   return `${dateFormat.format(start)}, ${timeFormat.format(start)} – ${dateFormat.format(end)}, ${timeFormat.format(end)}`;
 }
 
-export function MeetingCard({ meeting }: { meeting: Meeting }) {
+export function MeetingCard({ meeting, onChanged }: { meeting: Meeting; onChanged: () => void }) {
+  const [agendaOpen, setAgendaOpen] = useState(false);
   const start = new Date(meeting.starts_at);
   const end = new Date(meeting.ends_at);
   const attendees = meeting.attendee_count === 1 ? "1 attendee" : `${meeting.attendee_count} attendees`;
@@ -40,6 +44,13 @@ export function MeetingCard({ meeting }: { meeting: Meeting }) {
           {attendees}
         </span>
       </CardContent>
+      <div className="px-6">
+        <Button variant="outline" onClick={() => setAgendaOpen(true)}>
+          <ListChecks className="size-4" />
+          {meeting.agenda ? "Edit agenda" : "Agenda"}
+        </Button>
+      </div>
+      <AgendaDialog meeting={meeting} open={agendaOpen} onOpenChange={setAgendaOpen} onSaved={onChanged} />
     </Card>
   );
 }

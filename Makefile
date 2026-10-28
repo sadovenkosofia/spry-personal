@@ -28,6 +28,7 @@ up-local:
 deploy-frontend: export VITE_COGNITO_USER_POOL_ID = $(call auth_output,UserPoolId)
 deploy-frontend: export VITE_COGNITO_CLIENT_ID    = $(call auth_output,UserPoolClientId)
 deploy-frontend: export VITE_COGNITO_DOMAIN       = $(call auth_output,CognitoDomain)
+deploy-frontend: export VITE_PARSER_URL = $(call ai_output,ParserUrl)
 # build the bundle, sync to S3, invalidate CloudFront
 deploy-frontend:
 ifndef CLOUDFRONT_DIST_ID

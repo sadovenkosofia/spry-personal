@@ -9,9 +9,10 @@ interface MeetingListProps {
   loading: boolean;
   error: string | null;
   onNew: () => void;
+  onChanged: () => void;
 }
 
-export function MeetingList({ meetings, loading, error, onNew }: MeetingListProps) {
+export function MeetingList({ meetings, loading, error, onNew, onChanged }: MeetingListProps) {
   if (error) return <p className="text-sm text-destructive">{error}</p>;
   if (loading) return <p className="text-sm text-muted-foreground">Loading…</p>;
 
@@ -31,7 +32,7 @@ export function MeetingList({ meetings, loading, error, onNew }: MeetingListProp
     <ul className="grid gap-3">
       {meetings.map((meeting) => (
         <li key={meeting.id}>
-          <MeetingCard meeting={meeting} />
+          <MeetingCard meeting={meeting} onChanged={onChanged} />
         </li>
       ))}
     </ul>

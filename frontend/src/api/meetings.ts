@@ -1,4 +1,4 @@
-import type { Meeting, MeetingCreate } from "@/types/meeting";
+import type { Agenda, AiSuggestion, Meeting, MeetingCreate } from "@/types/meeting";
 
 interface ValidationError {
   msg: string;
@@ -32,6 +32,15 @@ export async function createMeeting(input: MeetingCreate): Promise<Meeting> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
+  });
+  if (!response.ok) throw new Error(await errorMessage(response));
+  return (await response.json()) as Meeting;
+}
+export async function saveAgenda(id: number, agenda: Agenda, aiSuggestion: AiSuggestion | null): Promise<Meeting> {
+  const response = await fetch(`/api/meetings/${id}/agenda`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...agenda, ai_suggestion: aiSuggestion }),
   });
   if (!response.ok) throw new Error(await errorMessage(response));
   return (await response.json()) as Meeting;
