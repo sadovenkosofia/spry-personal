@@ -100,6 +100,10 @@ function AgendaEditor({ meeting, onClose, onSaved }: { meeting: Meeting; onClose
     try {
       const result = await parseAgenda(text, idToken, controller.signal);
       const a = result.agenda;
+      if (!a.is_agenda || a.items.length === 0) {
+        setError("No agenda found in this text. You can enter it manually below.");
+        return;
+      }
       setSuggestion({ agenda: a, model: result.model, prompt_version: result.promptVersion });
       setItems(
         a.items.map((i) => ({

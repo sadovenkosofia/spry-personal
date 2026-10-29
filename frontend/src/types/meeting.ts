@@ -16,6 +16,7 @@ export interface Agenda {
 }
 
 export interface ParsedAgenda {
+  is_agenda: boolean;
   title: string | null;
   starts_at: string | null;
   duration_minutes: number | null;
