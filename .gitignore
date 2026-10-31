@@ -11,3 +11,9 @@ jq.exe
 taskdef.json
 
 taskdef.jq
+ids-*.txt
+
+.terraform/
+*.zip
+*.tfplan
+terraform.tfstate*
