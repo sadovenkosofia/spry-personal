@@ -37,8 +37,14 @@ resource "aws_cloudwatch_log_group" "mailer" {
 
 data "archive_file" "mailer" {
   type        = "zip"
-  source_file = "${path.module}/mailer/index.py"
   output_path = "${path.module}/mailer.zip"
+
+  # The file content, not the file itself: the zip then carries no file mode
+  # or timestamp, so the hash is the same on Windows, Linux and in HCP Terraform.
+  source {
+    content  = file("${path.module}/mailer/index.py")
+    filename = "index.py"
+  }
 }
 
 resource "aws_lambda_function" "mailer" {
