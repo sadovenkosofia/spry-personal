@@ -18,3 +18,4 @@ ids-*.txt
 *.tfplan
 terraform.tfstate*
 taskdef.json
+.firebase/
