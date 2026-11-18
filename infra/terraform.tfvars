@@ -3,14 +3,17 @@ domain_prefix = "spry-sofia-2026"
 
 callback_urls = [
   "https://db638pojoftlz.cloudfront.net/auth/callback",
+  "https://avid-sphere-510417-m1.web.app/auth/callback",
   "http://localhost:5173/auth/callback",
 ]
 logout_urls = [
   "https://db638pojoftlz.cloudfront.net/",
+  "https://avid-sphere-510417-m1.web.app/",
   "http://localhost:5173/",
 ]
 allowed_origins = [
   "https://db638pojoftlz.cloudfront.net",
+  "https://avid-sphere-510417-m1.web.app",
   "http://localhost:5173",
 ]
 
