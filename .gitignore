@@ -17,3 +17,4 @@ ids-*.txt
 *.zip
 *.tfplan
 terraform.tfstate*
+taskdef.json

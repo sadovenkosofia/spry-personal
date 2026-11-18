@@ -44,8 +44,8 @@ deploy-backend:
 	docker build -t $(IMAGE) ./backend
 	docker push $(IMAGE)
 	aws ecs describe-task-definition --region $(AWS_REGION) --task-definition $(TASK_FAMILY) --query taskDefinition \
-	  | jq --arg IMG "$(IMAGE)" 'del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy) | .containerDefinitions[0].image=$$IMG' > /tmp/taskdef.json
-	aws ecs register-task-definition --region $(AWS_REGION) --cli-input-json file:///tmp/taskdef.json > /dev/null
+	  | jq --arg IMG "$(IMAGE)" 'del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy) | .containerDefinitions[0].image=$$IMG' > taskdef.json
+	aws ecs register-task-definition --region $(AWS_REGION) --cli-input-json file://taskdef.json > /dev/null
 	aws ecs update-service --region $(AWS_REGION) --cluster $(ECS_CLUSTER) --service $(ECS_SERVICE) --task-definition $(TASK_FAMILY)
 
 # ---------------------------------------------------------------- weekly report (infra/base.tf, builder.tf, mailer.tf, schedule.tf)
