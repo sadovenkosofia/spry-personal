@@ -112,3 +112,57 @@ infra-validate:
 # speculative plan in HCP Terraform, changes nothing
 infra-plan:
 	terraform -chdir=infra plan
+
+
+# ---------------------------------------------------------------- Google Cloud (gcp/, firebase.json)
+# GCP_PROJECT defaults to the project in your gcloud config; override: make gcp-plan GCP_PROJECT=...
+GCP_PROJECT ?= $(shell gcloud config get-value project 2>/dev/null)
+GCP_REGION  ?= us-central1
+GCP_REPO     = $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT)/spry/spry-api
+GCP_IMAGE    = $(GCP_REPO):$(IMAGE_TAG)
+
+.PHONY: gcp-init gcp-plan gcp-apply gcp-deploy-api gcp-deploy-frontend gcp-db-stop gcp-db-start gcp-destroy
+gcp-init:
+	terraform -chdir=gcp init
+gcp-plan:
+	terraform -chdir=gcp plan
+# runs from the laptop with your gcloud credentials (no federation yet), unlike infra/
+gcp-apply:
+	terraform -chdir=gcp apply
+
+# build for Cloud Run (linux/amd64), push to Artifact Registry, roll out a new revision
+gcp-deploy-api:
+	gcloud auth configure-docker $(GCP_REGION)-docker.pkg.dev --quiet
+	docker build --platform linux/amd64 -t $(GCP_IMAGE) ./backend
+	docker push $(GCP_IMAGE)
+	gcloud run services update spry-api --region $(GCP_REGION) --project $(GCP_PROJECT) --image $(GCP_IMAGE)
+
+# Free variant (Firebase Spark plan, no billing): the SPA is served from Firebase Hosting and calls
+# the API that still runs on AWS:  make gcp-deploy-frontend API_BASE=https://xxxx.cloudfront.net
+# With billing and Cloud Run: make gcp-deploy-frontend FIREBASE_CONFIG=firebase.cloudrun.json
+# (that config rewrites /api/** to Cloud Run, so API_BASE stays empty).
+# Cognito and the parser stay on AWS, so those values still come from infra/ outputs.
+FIREBASE_CONFIG ?= firebase.json
+gcp-deploy-frontend: export VITE_API_BASE             = $(API_BASE)
+gcp-deploy-frontend: export VITE_COGNITO_USER_POOL_ID = $(call tf_output,user_pool_id)
+gcp-deploy-frontend: export VITE_COGNITO_CLIENT_ID    = $(call tf_output,user_pool_client_id)
+gcp-deploy-frontend: export VITE_COGNITO_DOMAIN       = $(call tf_output,cognito_domain)
+gcp-deploy-frontend: export VITE_PARSER_URL           = $(call tf_output,parser_url)
+gcp-deploy-frontend:
+ifeq ($(FIREBASE_CONFIG),firebase.json)
+ifndef API_BASE
+	$(error API_BASE is not set, e.g. make gcp-deploy-frontend API_BASE=https://xxxx.cloudfront.net)
+endif
+endif
+	cd frontend && npm ci && npm run build
+	npx --yes firebase-tools deploy --only hosting --config $(FIREBASE_CONFIG) --project $(GCP_PROJECT)
+
+# a stopped instance still bills its 10 GB of storage (~$1.70/month), but not compute
+gcp-db-stop:
+	gcloud sql instances patch spry-db --activation-policy=NEVER --project $(GCP_PROJECT)
+gcp-db-start:
+	gcloud sql instances patch spry-db --activation-policy=ALWAYS --project $(GCP_PROJECT)
+
+# removes everything the lab created in the GCP project
+gcp-destroy:
+	terraform -chdir=gcp destroy
